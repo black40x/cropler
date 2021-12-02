@@ -105,7 +105,7 @@ func ResizeImage(fileName string, height, width int, cx, cy, cw, ch, cmw, cmh in
 	// Resize
 	imgResized := img
 
-	if width != 0 && height != 0 {
+	if width != 0 || height != 0 {
 		imgResized = imaging.Resize(img, width, height, imaging.Lanczos)
 	}
 

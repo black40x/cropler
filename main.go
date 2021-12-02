@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -58,11 +59,10 @@ func SaveCacheImage(img image.Image, fileName string) {
 	}
 	defer out.Close()
 
-	ext := filepath.Ext(fileName)
+	ext := strings.ToLower(filepath.Ext(fileName))
 
 	switch ext {
-	case ".jpg":
-	case ".jpeg":
+	case ".jpg", ".jpeg":
 		opt := jpeg.Options{Quality: 90}
 		jpeg.Encode(out, img, &opt)
 		break

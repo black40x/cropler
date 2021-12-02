@@ -143,10 +143,6 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 			"error": "Image not found",
 		})
 	} else {
-		if Options.Debug {
-			Log(LogDebugColor, fmt.Sprintf("-> Resize image \"%s\" at %s\n", vars["image"], time.Since(timeStart)))
-		}
-
 		fileBytes, err := ioutil.ReadFile(outputFile)
 		if err == nil {
 			w.WriteHeader(http.StatusOK)
@@ -156,6 +152,9 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 			response(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Image process error",
 			})
+		}
+		if Options.Debug {
+			Log(LogDebugColor, fmt.Sprintf("-> Resize image \"%s\" at %s\n", vars["image"], time.Since(timeStart)))
 		}
 	}
 }

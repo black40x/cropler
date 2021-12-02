@@ -188,7 +188,7 @@ var Options struct {
 }
 
 func main() {
-	Log(LogNoticeColor, "Welcome to Cropler image resize server\n")
+	Log(LogNoticeColor, "🌄 Welcome to Cropler image resize server\n")
 	Log(LogNone, "Commands:\n")
 	Log(LogNone, "	-host       Server host\n")
 	Log(LogNone, "	-port       Server port\n")

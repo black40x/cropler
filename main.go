@@ -1,15 +1,15 @@
 package main
 
 import (
+	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/disintegration/imaging"
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
-	"image"
-	"image/jpeg"
-	"image/png"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -51,78 +51,99 @@ func toJson(r interface{}) []byte {
 
 // Crop
 
-func SaveCacheImage(img image.Image, fileName string) {
-	out, err := os.Create(fileName)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer out.Close()
-
-	ext := strings.ToLower(filepath.Ext(fileName))
-
+func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
 	switch ext {
 	case ".jpg", ".jpeg":
-		opt := jpeg.Options{Quality: 90}
-		jpeg.Encode(out, img, &opt)
+		ep := vips.NewJpegExportParams()
+		ep.Quality = 90
+		bytes, _, _ := img.ExportJpeg(ep)
+		err := ioutil.WriteFile(fileName, bytes, 0644)
+		if err != nil {
+			Log(LogErrorColor, err.Error())
+		}
 		break
 	case ".png":
-		png.Encode(out, img)
+		ep := vips.NewPngExportParams()
+		bytes, _, _ := img.ExportPng(ep)
+		err := ioutil.WriteFile(fileName, bytes, 0644)
+		if err != nil {
+			Log(LogErrorColor, err.Error())
+		}
 		break
 	}
 }
 
 func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (outputFile string, err error) {
 	// Check cache!
-	outputFile = fmt.Sprintf("%s/%dx%dc%d_%dx%d_%dcw%dx%d:%s", Options.TempPath, width, height, cx, cy, cw, ch, cmw, cmh, fileName)
+	ext := strings.ToLower(filepath.Ext(strings.ReplaceAll(fileName, ".cache", "")))
+	cacheName := []byte(fmt.Sprintf("%dx%dc%d_%dx%d_%dcw%dx%d_%s", width, height, cx, cy, cw, ch, cmw, cmh, fileName))
+	outputFile = fmt.Sprintf("%s/%x.cache", Options.TempPath, md5.Sum(cacheName))
 	if _, err := os.Stat(outputFile); err == nil {
 		return outputFile, nil
 	}
 
 	// Work with storage file
-	file, err := os.Open(fmt.Sprintf("%s/%s", Options.StoragePath, fileName))
+	file, err := vips.NewImageFromFile(fmt.Sprintf("%s/%s", Options.StoragePath, fileName))
 	if err != nil {
-		return "", err
+		return "", errors.New("image not found")
 	}
 	defer file.Close()
 
-	img, _, err := image.Decode(file)
-	if err != nil {
-		return "", err
-	}
-
-	file.Seek(0, 0)
-	imgConfig, _, err := image.DecodeConfig(file)
-
-	if imgConfig.Width < width {
+	if file.Width() < width {
 		width = 0
 	}
 
-	if imgConfig.Width < height {
+	if file.Height() < height {
 		height = 0
 	}
 
-	// Resize
-	imgResized := img
+	widthScale := float64(width) / float64(file.Width())
+	heightScale := float64(height) / float64(file.Height())
 
-	if width != 0 || height != 0 {
-		imgResized = imaging.Resize(img, width, height, imaging.Lanczos)
+	if width == 0 {
+		widthScale = (float64(file.Width()) * heightScale) / float64(file.Width())
 	}
 
-	if cw != 0 && ch != 0 {
-		imgResized = imaging.Crop(imgResized, image.Rect(cx, cy, cx+cw, cy+ch))
-
-		if (cmw != 0 || cmh != 0) && (cmw <= cw || cmh <= ch) {
-			imgResized = imaging.Resize(imgResized, cmw, cmh, imaging.Lanczos)
+	// Resize
+	if width != 0 || height != 0 {
+		err := file.ResizeWithVScale(widthScale, heightScale, vips.KernelLanczos2)
+		if err != nil {
+			return "", errors.New("image resize invalid scale factor")
 		}
 	}
 
-	SaveCacheImage(imgResized, outputFile)
+	if cw != 0 && ch != 0 {
+		err := file.ExtractArea(cx, cy, cw, ch)
+		if err != nil {
+			return "", errors.New("image crop invalid rect")
+		}
 
-	// Free vars
-	imgResized = nil
-	img = nil
-	file = nil
+		if (cmw != 0 || cmh != 0) && (cmw <= cw || cmh <= ch) {
+			if file.Width() < cmw {
+				cmw = 0
+			}
+
+			if file.Height() < cmh {
+				cmh = 0
+			}
+
+			cmwScale := float64(cmw) / float64(cw)
+			cmhScale := float64(cmh) / float64(ch)
+
+			if cmw == 0 && cmh == 0 {
+				cmwScale = 1
+			} else if cmw == 0 {
+				cmwScale = (float64(file.Width()) * cmhScale) / float64(file.Width())
+			}
+
+			err := file.ResizeWithVScale(cmwScale, cmhScale, vips.KernelLanczos2)
+			if err != nil {
+				return "", errors.New("image crop resize invalid scale factor")
+			}
+		}
+	}
+
+	SaveCacheImage(file, outputFile, ext)
 
 	return outputFile, nil
 }
@@ -145,7 +166,7 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		response(w, http.StatusNotFound, map[string]interface{}{
-			"error": "Image not found",
+			"error": err.Error(),
 		})
 	} else {
 		file, err := os.Open(outputFile)
@@ -156,7 +177,7 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 			io.Copy(w, file)
 		} else {
 			response(w, http.StatusBadRequest, map[string]interface{}{
-				"error": "Image process error",
+				"error": err.Error(),
 			})
 		}
 
@@ -193,14 +214,22 @@ var Options struct {
 	Debug       bool   `short:"d" long:"debug" description:"Show debug information"`
 }
 
+func VipsLog(messageDomain string, messageLevel vips.LogLevel, message string) {
+}
+
 func main() {
-	Log(LogNoticeColor, "🌄 Welcome to Cropler image resize server\n")
+	config := vips.Config{ReportLeaks: false, CollectStats: false}
+	vips.LoggingSettings(VipsLog, 0)
+	vips.Startup(&config)
+	defer vips.Shutdown()
+
+	Log(LogInfoColor, "🌄 Welcome to Cropler image resize server\n")
 	Log(LogNone, "Commands:\n")
-	Log(LogNone, "	-host       Server host\n")
-	Log(LogNone, "	-port       Server port\n")
-	Log(LogNone, "	-storage    Image storage path\n")
-	Log(LogNone, "	-temp       Image temp path\n")
-	Log(LogNone, "	-debug      Show debug information\n\n")
+	Log(LogNone, "	-host       Server host. Default 'localhost'.\n")
+	Log(LogNone, "	-port       Server port. Default '8080'.\n")
+	Log(LogNone, "	-storage    Image storage path. Default './storage'.\n")
+	Log(LogNone, "	-temp       Image temp path. Default './temp'.\n")
+	Log(LogNone, "	-debug      Show debug information. Default 'false'.\n\n")
 
 	_, err := flags.ParseArgs(&Options, os.Args)
 

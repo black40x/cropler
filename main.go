@@ -9,12 +9,11 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"time"
 )
@@ -85,8 +84,8 @@ func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (
 	if err != nil {
 		return "", err
 	}
-
 	defer file.Close()
+
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return "", err
@@ -120,10 +119,10 @@ func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (
 
 	SaveCacheImage(imgResized, outputFile)
 
+	// Free vars
 	imgResized = nil
 	img = nil
 	file = nil
-	runtime.GC()
 
 	return outputFile, nil
 }
@@ -149,17 +148,18 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 			"error": "Image not found",
 		})
 	} else {
-		fileBytes, err := ioutil.ReadFile(outputFile)
+		file, err := os.Open(outputFile)
+		defer file.Close()
 		if err == nil {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Write(fileBytes)
-			fileBytes = nil
+			io.Copy(w, file)
 		} else {
 			response(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Image process error",
 			})
 		}
+
 		if Options.Debug {
 			Log(LogDebugColor, fmt.Sprintf("-> Resize image \"%s\" at %s\n", vars["image"], time.Since(timeStart)))
 		}

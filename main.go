@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -72,7 +73,7 @@ func SaveCacheImage(img image.Image, fileName string) {
 	}
 }
 
-func ResizeImage(fileName string, height, width int, cx, cy, cw, ch, cmw, cmh int) (outputFile string, err error) {
+func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (outputFile string, err error) {
 	// Check cache!
 	outputFile = fmt.Sprintf("%s/%dx%dc%d_%dx%d_%dcw%dx%d:%s", Options.TempPath, width, height, cx, cy, cw, ch, cmw, cmh, fileName)
 	if _, err := os.Stat(outputFile); err == nil {
@@ -119,6 +120,11 @@ func ResizeImage(fileName string, height, width int, cx, cy, cw, ch, cmw, cmh in
 
 	SaveCacheImage(imgResized, outputFile)
 
+	imgResized = nil
+	img = nil
+	file = nil
+	runtime.GC()
+
 	return outputFile, nil
 }
 
@@ -148,6 +154,7 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/octet-stream")
 			w.Write(fileBytes)
+			fileBytes = nil
 		} else {
 			response(w, http.StatusBadRequest, map[string]interface{}{
 				"error": "Image process error",

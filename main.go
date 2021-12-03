@@ -52,12 +52,17 @@ func toJson(r interface{}) []byte {
 // Crop
 
 func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
+	if _, err := os.Stat(fileName); err == nil {
+		fmt.Println("File exists")
+		return
+	}
+
 	switch ext {
 	case ".jpg", ".jpeg":
 		ep := vips.NewJpegExportParams()
 		ep.Quality = 90
 		bytes, _, _ := img.ExportJpeg(ep)
-		err := ioutil.WriteFile(fileName, bytes, 0644)
+		err := ioutil.WriteFile(fileName, bytes, 0755)
 		if err != nil {
 			Log(LogErrorColor, err.Error())
 		}
@@ -65,7 +70,7 @@ func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
 	case ".png":
 		ep := vips.NewPngExportParams()
 		bytes, _, _ := img.ExportPng(ep)
-		err := ioutil.WriteFile(fileName, bytes, 0644)
+		err := ioutil.WriteFile(fileName, bytes, 0755)
 		if err != nil {
 			Log(LogErrorColor, err.Error())
 		}
@@ -74,6 +79,12 @@ func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
 }
 
 func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (outputFile string, err error) {
+	// Check bad work for resize
+	if width == 0 && height == 0 && cw == 0 && ch == 0 {
+		outputFile = fmt.Sprintf("%s/%s", Options.StoragePath, fileName)
+		return outputFile, nil
+	}
+
 	// Check cache!
 	ext := strings.ToLower(filepath.Ext(strings.ReplaceAll(fileName, ".cache", "")))
 	cacheName := []byte(fmt.Sprintf("%dx%dc%d_%dx%d_%dcw%dx%d_%s", width, height, cx, cy, cw, ch, cmw, cmh, fileName))
@@ -162,6 +173,7 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 	width, _ := strconv.Atoi(vars["width"])
 	height, _ := strconv.Atoi(vars["height"])
 	timeStart := time.Now()
+
 	outputFile, err := ResizeImage(vars["image"], width, height, cx, cy, cw, ch, cmw, cmh)
 
 	if err != nil {

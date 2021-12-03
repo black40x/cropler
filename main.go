@@ -294,7 +294,7 @@ func CacheWorker() {
 	for i := 0; ; i++ {
 		time.Sleep(time.Minute)
 		CacheClear()
-		time.Sleep((time.Minute * time.Duration(Options.CacheTime)) - time.Minute)
+		time.Sleep((time.Hour * time.Duration(Options.CacheTime)) - time.Minute)
 	}
 }
 

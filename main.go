@@ -166,8 +166,12 @@ func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (
 func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
+	imagePath := vars["image"]
+	imagePath = strings.ReplaceAll(imagePath, "../", "")
+	imagePath = strings.ReplaceAll(imagePath, "./", "")
+
 	if Options.Debug {
-		Log(LogDebugColor, fmt.Sprintf("-> Resize image request \"%s\"\n", vars["image"]))
+		Log(LogDebugColor, fmt.Sprintf("-> Resize image request \"%s\"\n", imagePath))
 	}
 
 	cx, _ := strconv.Atoi(r.URL.Query().Get("cx"))
@@ -180,7 +184,7 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 	height, _ := strconv.Atoi(vars["height"])
 	timeStart := time.Now()
 
-	outputFile, err := ResizeImage(vars["image"], width, height, cx, cy, cw, ch, cmw, cmh)
+	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh)
 
 	if err != nil {
 		response(w, http.StatusNotFound, map[string]interface{}{
@@ -200,7 +204,7 @@ func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if Options.Debug {
-			Log(LogDebugColor, fmt.Sprintf("-> Resize image \"%s\" at %s\n", vars["image"], time.Since(timeStart)))
+			Log(LogDebugColor, fmt.Sprintf("-> Resize image \"%s\" at %s\n", imagePath, time.Since(timeStart)))
 		}
 	}
 }
@@ -218,7 +222,7 @@ func InitServer(host string, port int) {
 	listener = netutil.LimitListener(listener, concurrency*10)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/{width}/{height}/{image}", HandleCropRequest).Methods("GET")
+	router.HandleFunc("/{width}/{height}/{image:.*}", HandleCropRequest).Methods("GET")
 	router.NotFoundHandler = http.HandlerFunc(HandleNotFound)
 
 	srv := &http.Server{

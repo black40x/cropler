@@ -244,10 +244,61 @@ var Options struct {
 	KeepAlive   bool   `short:"k" long:"keep-alive" description:"HTTP Keep alive"`
 	ReadTimeout int    `short:"r" long:"read-timeout" description:"HTTP Read timeout" default:"10"`
 	IdleTimeout int    `short:"i" long:"idle-timeout" description:"HTTP Idle timeout" default:"10"`
+	CacheTime   int    `short:"c" long:"cache-time" description:"Cache time in hours" default:"24"`
 }
 
 func VipsLog(messageDomain string, messageLevel vips.LogLevel, message string) {
 }
+
+// Cache clear
+
+func ByteFormat(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %ciB", float64(size)/float64(div), "KMGTPE"[exp])
+}
+
+func CacheClear() {
+	fs, err := ioutil.ReadDir(Options.TempPath)
+	if err != nil {
+		Log(LogErrorColor, err.Error())
+		return
+	}
+
+	cleared := 0
+	var size int64 = 0
+
+	for _, info := range fs {
+		if filepath.Ext(info.Name()) == ".cache" {
+			if time.Since(info.ModTime()).Seconds() > float64(Options.CacheTime) {
+				os.Remove(fmt.Sprintf("%s/%s", Options.TempPath, info.Name()))
+				size += info.Size()
+				cleared++
+			}
+		}
+	}
+
+	if Options.Debug {
+		Log(LogNoticeColor, fmt.Sprintf("---> Cache clear %d files, %s size.\n", cleared, ByteFormat(size)))
+	}
+}
+
+func CacheWorker() {
+	for i := 0; ; i++ {
+		time.Sleep(time.Minute)
+		CacheClear()
+		time.Sleep((time.Minute * time.Duration(Options.CacheTime)) - time.Minute)
+	}
+}
+
+// Main server
 
 func main() {
 	config := vips.Config{
@@ -261,17 +312,24 @@ func main() {
 
 	Log(LogInfoColor, "🌄 Welcome to Cropler image resize server\n")
 	Log(LogNone, "Commands:\n")
-	Log(LogNone, "	-host       Server host. Default 'localhost'.\n")
-	Log(LogNone, "	-port       Server port. Default '8080'.\n")
-	Log(LogNone, "	-storage    Image storage path. Default './storage'.\n")
-	Log(LogNone, "	-temp       Image temp path. Default './temp'.\n")
-	Log(LogNone, "	-debug      Show debug information. Default 'false'.\n\n")
+	Log(LogNone, "	-host       	Server host. Default 'localhost'.\n")
+	Log(LogNone, "	-port       	Server port. Default '8080'.\n")
+	Log(LogNone, "	-storage    	Image storage path. Default './storage'.\n")
+	Log(LogNone, "	-temp       	Image temp path. Default './temp'.\n")
+	Log(LogNone, "	-keep-alive 	HTTP Keep alive. Default 'false'.\n")
+	Log(LogNone, "	-read-timeout	HTTP Read timeout. Default '10'.\n")
+	Log(LogNone, "	-idle-timeout	HTTP Idle timeout. Default '10'.\n")
+	Log(LogNone, "	-cache-time	Cache time in hours, 0 to disable. Default '24'.\n")
+	Log(LogNone, "	-debug      	Show debug information. Default 'false'.\n\n")
 
 	_, err := flags.ParseArgs(&Options, os.Args)
 
 	if err != nil {
 		panic(err)
 	} else {
+		if Options.CacheTime > 0 {
+			go CacheWorker()
+		}
 		InitServer(Options.Host, Options.Port)
 	}
 }

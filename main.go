@@ -56,7 +56,6 @@ func toJson(r interface{}) []byte {
 
 func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
 	if _, err := os.Stat(fileName); err == nil {
-		fmt.Println("File exists")
 		return
 	}
 

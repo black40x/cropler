@@ -8,12 +8,15 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/gorilla/mux"
 	"github.com/jessevdk/go-flags"
+	"golang.org/x/net/netutil"
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -62,7 +65,7 @@ func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
 		ep := vips.NewJpegExportParams()
 		ep.Quality = 90
 		bytes, _, _ := img.ExportJpeg(ep)
-		err := ioutil.WriteFile(fileName, bytes, 0755)
+		err := ioutil.WriteFile(fileName, bytes, 0644)
 		if err != nil {
 			Log(LogErrorColor, err.Error())
 		}
@@ -70,7 +73,7 @@ func SaveCacheImage(img *vips.ImageRef, fileName, ext string) {
 	case ".png":
 		ep := vips.NewPngExportParams()
 		bytes, _, _ := img.ExportPng(ep)
-		err := ioutil.WriteFile(fileName, bytes, 0755)
+		err := ioutil.WriteFile(fileName, bytes, 0644)
 		if err != nil {
 			Log(LogErrorColor, err.Error())
 		}
@@ -164,6 +167,10 @@ func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (
 func HandleCropRequest(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
+	if Options.Debug {
+		Log(LogDebugColor, fmt.Sprintf("-> Resize image request \"%s\"\n", vars["image"]))
+	}
+
 	cx, _ := strconv.Atoi(r.URL.Query().Get("cx"))
 	cy, _ := strconv.Atoi(r.URL.Query().Get("cy"))
 	cw, _ := strconv.Atoi(r.URL.Query().Get("cw"))
@@ -206,14 +213,25 @@ func HandleNotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func InitServer(host string, port int) {
+	concurrency := runtime.NumCPU() * 2
+	addr := fmt.Sprintf("%s:%d", host, port)
+	listener, _ := net.Listen("tcp", addr)
+	listener = netutil.LimitListener(listener, concurrency*10)
+
 	router := mux.NewRouter()
 	router.HandleFunc("/{width}/{height}/{image}", HandleCropRequest).Methods("GET")
 	router.NotFoundHandler = http.HandlerFunc(HandleNotFound)
 
-	http.Handle("/", router)
+	srv := &http.Server{
+		Addr:        addr,
+		Handler:     router,
+		ReadTimeout: time.Duration(Options.ReadTimeout) * time.Second,
+		IdleTimeout: time.Duration(Options.IdleTimeout) * time.Second,
+	}
+	srv.SetKeepAlivesEnabled(Options.KeepAlive)
 
-	Log(LogInfoColor, fmt.Sprintf("🚀 Server started at %s:%d \n", host, port))
-	log.Fatal(http.ListenAndServe(fmt.Sprintf("%s:%d", host, port), nil))
+	Log(LogInfoColor, fmt.Sprintf("🚀 Server started at %s \n", addr))
+	log.Fatal(srv.Serve(listener))
 }
 
 // Main
@@ -224,13 +242,20 @@ var Options struct {
 	StoragePath string `short:"s" long:"storage" description:"Storage path" required:"true" default:"./storage"`
 	TempPath    string `short:"t" long:"temp" description:"Temp path" required:"true" default:"./temp"`
 	Debug       bool   `short:"d" long:"debug" description:"Show debug information"`
+	KeepAlive   bool   `short:"k" long:"keep-alive" description:"HTTP Keep alive"`
+	ReadTimeout int    `short:"r" long:"read-timeout" description:"HTTP Read timeout" default:"10"`
+	IdleTimeout int    `short:"i" long:"idle-timeout" description:"HTTP Idle timeout" default:"10"`
 }
 
 func VipsLog(messageDomain string, messageLevel vips.LogLevel, message string) {
 }
 
 func main() {
-	config := vips.Config{ReportLeaks: false, CollectStats: false}
+	config := vips.Config{
+		ReportLeaks:  false,
+		CollectStats: false,
+		CacheTrace:   false,
+	}
 	vips.LoggingSettings(VipsLog, 0)
 	vips.Startup(&config)
 	defer vips.Shutdown()

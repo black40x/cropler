@@ -8,6 +8,6 @@
 
 .DS_Store
 .idea
-storage
+/storage
 temp
 cropler

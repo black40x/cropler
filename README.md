@@ -1,5 +1,5 @@
 # Cropler
-GoLang image simple resize and crop service
+GoLang image simple resize and crop service with minio support
 
 ### URL parameters
 ```
@@ -14,3 +14,5 @@ go build cropler
 
 ./cropler 
 ```
+
+ToDo - write readme

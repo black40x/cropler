@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  app:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    ports:
+      - '${DOCKER_APP_PORT}:${APP_PORT}'
+    volumes:
+      - ./:/var/www/cropler
+      - ${IMAGE_STORAGE_PATH}:${APP_STORAGE_PATH}

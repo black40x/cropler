@@ -77,9 +77,11 @@ func handleNotFound(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func InitServer(host string) {
+func InitServer(port string) {
+    addr := ":" + port
+
 	concurrency := runtime.NumCPU() * 2
-	listener, _ := net.Listen("tcp", host)
+	listener, _ := net.Listen("tcp", addr)
 	listener = netutil.LimitListener(listener, concurrency*10)
 
 	router := mux.NewRouter()
@@ -87,13 +89,13 @@ func InitServer(host string) {
 	router.NotFoundHandler = http.HandlerFunc(handleNotFound)
 
 	srv := &http.Server{
-		Addr:        host,
+		Addr:        addr,
 		Handler:     router,
 		ReadTimeout: time.Duration(config.Options.ReadTimeout) * time.Second,
 		IdleTimeout: time.Duration(config.Options.IdleTimeout) * time.Second,
 	}
 	srv.SetKeepAlivesEnabled(config.Options.KeepAlive)
 
-	logger.LogInfo(fmt.Sprintf("🚀 Server started at %s \n", host))
+	logger.LogInfo(fmt.Sprintf("🚀 Server started at %s \n", addr))
 	log.Fatal(srv.Serve(listener))
 }

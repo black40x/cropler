@@ -1,8 +1,10 @@
 package config
 
 import (
+    "cropler/pkg/logger"
 	"github.com/jessevdk/go-flags"
 	"os"
+	"github.com/joho/godotenv"
 )
 
 var Options struct {
@@ -29,5 +31,10 @@ func WriteHelp() {
 }
 
 func InitConfig() ([]string, error) {
+    err := godotenv.Load()
+    if err != nil {
+        logger.LogError("Error loading .env file")
+    }
+
 	return parser.ParseArgs(os.Args)
 }

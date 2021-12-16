@@ -82,6 +82,11 @@ func cacheWorker() {
 }
 
 func InitCacheWorker() {
+    err := os.MkdirAll(config.Options.TempPath, 0644)
+    if err != nil {
+        logger.LogError("Error create temp path directory")
+    }
+
 	if config.Options.CacheTime > 0 {
 		go cacheWorker()
 	}

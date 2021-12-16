@@ -5,16 +5,10 @@ import (
 	"cropler/pkg/config"
 	"cropler/pkg/logger"
 	"cropler/pkg/storage"
-    "github.com/joho/godotenv"
 )
 
 func main() {
 	logger.LogInfo("Welcome to Cropler image resize server 🌄\n\n")
-
-    err := godotenv.Load()
-    if err != nil {
-        logger.LogError("Error loading .env file")
-    }
 
 	if _, err := config.InitConfig(); err == nil {
 		if config.Options.Help {

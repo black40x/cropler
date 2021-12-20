@@ -65,7 +65,7 @@ func handleCropRequest(w http.ResponseWriter, r *http.Request) {
 			logger.Log(fmt.Sprintf("[%s] Resize error \"%s\"\n", logger.CurrTime(), imagePath))
 
 			response(w, http.StatusBadRequest, map[string]interface{}{
-				"error": err.Error(),
+				"error": fmt.Sprintf("File %s not found", imagePath),
 			})
 		}
 	}

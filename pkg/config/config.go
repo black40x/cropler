@@ -8,7 +8,8 @@ import (
 )
 
 var Options struct {
-	Host        string `short:"a" long:"addr" description:"Server host" required:"true" env:"APP_PORT" default:"5000"`
+	Host        string `short:"a" long:"addr" description:"Server host" required:"true" env:"APP_HOST" default:"127.0.0.1"`
+	Port        string `short:"p" long:"port" description:"Server port" required:"true" env:"APP_PORT" default:"5000"`
 	RouteRoot   string `long:"route-root" description:"Route root path" env:"APP_ROUTE_ROOT" default:""`
 	StoragePath string `short:"s" long:"storage" description:"Storage path" env:"APP_STORAGE_PATH" default:"./storage"`
 	TempPath    string `short:"t" long:"temp" description:"Temp path" required:"true" env:"APP_TEMP_PATH" default:"./temp"`

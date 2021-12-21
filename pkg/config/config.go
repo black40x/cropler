@@ -1,14 +1,15 @@
 package config
 
 import (
-    "cropler/pkg/logger"
+	"cropler/pkg/logger"
 	"github.com/jessevdk/go-flags"
-	"os"
 	"github.com/joho/godotenv"
+	"os"
 )
 
 var Options struct {
 	Host        string `short:"a" long:"addr" description:"Server host" required:"true" env:"APP_PORT" default:"5000"`
+	RouteRoot   string `long:"route-root" description:"Route root path" env:"APP_ROUTE_ROOT" default:""`
 	StoragePath string `short:"s" long:"storage" description:"Storage path" env:"APP_STORAGE_PATH" default:"./storage"`
 	TempPath    string `short:"t" long:"temp" description:"Temp path" required:"true" env:"APP_TEMP_PATH" default:"./temp"`
 	Minio       bool   `short:"m" long:"minio" description:"Use minio as storage" env:"USE_MINIO"`
@@ -31,10 +32,10 @@ func WriteHelp() {
 }
 
 func InitConfig() ([]string, error) {
-    err := godotenv.Load()
-    if err != nil {
-        logger.LogError("Error loading .env file")
-    }
+	err := godotenv.Load()
+	if err != nil {
+		logger.LogError("Error loading .env file")
+	}
 
 	return parser.ParseArgs(os.Args)
 }

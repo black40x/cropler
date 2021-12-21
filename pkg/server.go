@@ -49,7 +49,7 @@ func handleCropRequest(w http.ResponseWriter, r *http.Request) {
 	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh)
 
 	if err != nil {
-	    logger.Log(fmt.Sprintf("[%s] File open error: \"%s\"\n", logger.CurrTime(), err.Error()))
+		logger.Log(fmt.Sprintf("[%s] File open error: \"%s\"\n", logger.CurrTime(), err.Error()))
 
 		response(w, http.StatusNotFound, map[string]interface{}{
 			"error": fmt.Sprintf("File %s not found", imagePath),
@@ -80,14 +80,16 @@ func handleNotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func InitServer(port string) {
-    addr := ":" + port
+	addr := ":" + port
 
 	concurrency := runtime.NumCPU() * 2
 	listener, _ := net.Listen("tcp", addr)
 	listener = netutil.LimitListener(listener, concurrency*10)
 
 	router := mux.NewRouter()
-	router.HandleFunc("/{width}/{height}/{image:.*}", handleCropRequest).Methods("GET")
+	router.HandleFunc(
+		fmt.Sprintf("%s/{width}/{height}/{image:.*}", config.Options.RouteRoot), handleCropRequest,
+	).Methods("GET")
 	router.NotFoundHandler = http.HandlerFunc(handleNotFound)
 
 	srv := &http.Server{

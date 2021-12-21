@@ -79,9 +79,7 @@ func handleNotFound(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func InitServer(port string) {
-	addr := ":" + port
-
+func InitServer(addr string) {
 	concurrency := runtime.NumCPU() * 2
 	listener, _ := net.Listen("tcp", addr)
 	listener = netutil.LimitListener(listener, concurrency*10)

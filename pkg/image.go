@@ -132,11 +132,15 @@ func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64,
 		}
 	}
 
-	SaveCacheImage(file, outputFile, ext)
-
 	if !cropped && len(points) > 0 {
-		DrawPoints(outputFile, points, inUV)
+		ovBuf := DrawPoints(file.Width(), file.Height(), points, inUV)
+		overlay, _ := vips.NewImageFromBuffer(ovBuf)
+		defer overlay.Close()
+		overlay.AddAlpha()
+		file.Composite(overlay, vips.BlendModeOver, 0, 0)
 	}
+
+	SaveCacheImage(file, outputFile, ext)
 
 	return outputFile, nil
 }

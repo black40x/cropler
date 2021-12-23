@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"github.com/fogleman/gg"
@@ -8,6 +9,7 @@ import (
 	font2 "golang.org/x/image/font"
 	"golang.org/x/image/font/gofont/goregular"
 	"image"
+	"image/png"
 	"strconv"
 	"strings"
 )
@@ -129,9 +131,8 @@ func DrawMarkerView(ctx *gg.Context, _x, _y, angle float64, number int, inUV boo
 	ctx.DrawStringAnchored(strconv.Itoa(number), x, y-2, 0.5, 0.5)
 }
 
-func DrawPoints(fileName string, points []DefinitionPoint, inUV bool) {
-	img, _ := gg.LoadImage(fileName)
-	dc := gg.NewContextForImage(img)
+func DrawPoints(width, height int, points []DefinitionPoint, inUV bool) []byte {
+	dc := gg.NewContext(width, height)
 
 	for _, p := range points {
 		if p.HasAngle {
@@ -140,6 +141,8 @@ func DrawPoints(fileName string, points []DefinitionPoint, inUV bool) {
 			DrawMarker(dc, p.X, p.Y, p.Number, inUV)
 		}
 	}
-
-	dc.SavePNG(fileName)
+	dc.SavePNG("out.png")
+	buf := new(bytes.Buffer)
+	png.Encode(buf, dc.Image())
+	return buf.Bytes()
 }

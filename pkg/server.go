@@ -52,7 +52,6 @@ func handleCropRequest(w http.ResponseWriter, r *http.Request) {
 	timeStart := time.Now()
 
 	points := ParsePoints(r.URL.Query().Get("points"))
-	fmt.Println(points)
 
 	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh, points, inUv)
 

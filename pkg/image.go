@@ -12,16 +12,20 @@ import (
 	"strings"
 )
 
-func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (outputFile string, err error) {
+func fromUV(x float64, size int) int {
+	return int(x * float64(size))
+}
+
+func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64, cmw, cmh int, inUv bool) (outputFile string, err error) {
 	// Check bad work for resize
-	if !storage.StoreOriginal() && (width == 0 && height == 0 && cw == 0 && ch == 0) {
+	if !storage.StoreOriginal() && (width == 0 && height == 0 && _cw == 0 && _ch == 0) {
 		outputFile = fmt.Sprintf("%s/%s", config.Options.StoragePath, fileName)
 		return outputFile, nil
 	}
 
 	// Check cache!
 	ext := strings.ToLower(filepath.Ext(strings.ReplaceAll(fileName, ".cache", "")))
-	cacheName := []byte(fmt.Sprintf("%dx%dc%d_%dx%d_%dcw%dx%d_%s", width, height, cx, cy, cw, ch, cmw, cmh, fileName))
+	cacheName := []byte(fmt.Sprintf("%dx%dc%f_%fx%f_%fcw%dx%d_%s", width, height, _cx, _cy, _cw, _ch, cmw, cmh, fileName))
 	outputFile = fmt.Sprintf("%s/%x.cache", config.Options.TempPath, md5.Sum(cacheName))
 	if _, err := os.Stat(outputFile); err == nil {
 		return outputFile, nil
@@ -30,14 +34,45 @@ func ResizeImage(fileName string, width, height, cx, cy, cw, ch, cmw, cmh int) (
 	// Work with storage file
 	bytes, err := storage.GetFile(fileName)
 	if err != nil {
-		return "", errors.New(err.Error())
+		return "", errors.New("image not found")
 	}
 
 	file, err := vips.NewImageFromBuffer(bytes)
 	if err != nil {
-		return "", errors.New("image not found")
+		return "", errors.New("image read error")
 	}
 	defer file.Close()
+
+	// Convert coords
+	var cx, cy, cw, ch int
+
+	if inUv {
+		var newWidth, newHeight int
+
+		if width != 0 && height != 0 {
+			newWidth = width
+			newHeight = height
+		} else if width != 0 && height == 0 {
+			newWidth = width
+			newHeight = int(float32(file.Height()) * ((float32(width) / (float32(file.Width()) * 0.01)) / 100))
+		} else if height != 0 && width == 0 {
+			newHeight = height
+			newWidth = int(float32(file.Width()) * ((float32(height) / (float32(file.Height()) * 0.01)) / 100))
+		} else {
+			newHeight = file.Height()
+			newWidth = file.Width()
+		}
+
+		cw = fromUV(_cw, newWidth)
+		ch = fromUV(_ch, newHeight)
+		cx = fromUV(_cx, newWidth) - (cw / 2)
+		cy = fromUV(_cy, newHeight) - (ch / 2)
+	} else {
+		cx = int(_cx)
+		cy = int(_cy)
+		cw = int(_cw)
+		ch = int(_ch)
+	}
 
 	if file.Width() < width {
 		width = 0

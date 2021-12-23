@@ -106,7 +106,7 @@ func DrawMarker(ctx *gg.Context, _x, _y float64, number int, inUV bool) {
 	ctx.SetFontFace(face)
 	ctx.SetRGB(1, 1, 1)
 	ctx.Fill()
-	ctx.DrawStringAnchored(strconv.Itoa(number), x, y-7, 0.5, 0.5)
+	ctx.DrawStringAnchored(strconv.Itoa(number), x, y-6, 0.5, 0.5)
 }
 
 func DrawMarkerView(ctx *gg.Context, _x, _y, angle float64, number int, inUV bool) {

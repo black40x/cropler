@@ -25,7 +25,7 @@ func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64,
 
 	// Check cache!
 	ext := strings.ToLower(filepath.Ext(strings.ReplaceAll(fileName, ".cache", "")))
-	cacheName := []byte(fmt.Sprintf("%dx%dc%f_%fx%f_%fcw%dx%d_%s", width, height, _cx, _cy, _cw, _ch, cmw, cmh, fileName))
+	cacheName := []byte(fmt.Sprintf("%t_%dx%dc%f_%fx%f_%fcw%dx%d_%s", inUv, width, height, _cx, _cy, _cw, _ch, cmw, cmh, fileName))
 	outputFile = fmt.Sprintf("%s/%x.cache", config.Options.TempPath, md5.Sum(cacheName))
 	if _, err := os.Stat(outputFile); err == nil {
 		return outputFile, nil

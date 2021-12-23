@@ -18,7 +18,7 @@ func fromUV(x float64, size int) int {
 
 func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64, cmw, cmh int, points []DefinitionPoint, inUV bool) (outputFile string, err error) {
 	// Check bad work for resize
-	if !storage.StoreOriginal() && (width == 0 && height == 0 && _cw == 0 && _ch == 0) {
+	if !storage.StoreOriginal() && (width == 0 && height == 0 && _cw == 0 && _ch == 0) && len(points) == 0 {
 		outputFile = fmt.Sprintf("%s/%s", config.Options.StoragePath, fileName)
 		return outputFile, nil
 	}

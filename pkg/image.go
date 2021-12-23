@@ -16,7 +16,7 @@ func fromUV(x float64, size int) int {
 	return int(x * float64(size))
 }
 
-func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64, cmw, cmh int, inUv bool) (outputFile string, err error) {
+func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64, cmw, cmh int, points []DefinitionPoint, inUV bool) (outputFile string, err error) {
 	// Check bad work for resize
 	if !storage.StoreOriginal() && (width == 0 && height == 0 && _cw == 0 && _ch == 0) {
 		outputFile = fmt.Sprintf("%s/%s", config.Options.StoragePath, fileName)
@@ -25,19 +25,21 @@ func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64,
 
 	// Check cache!
 	ext := strings.ToLower(filepath.Ext(strings.ReplaceAll(fileName, ".cache", "")))
-	cacheName := []byte(fmt.Sprintf("%t_%dx%dc%f_%fx%f_%fcw%dx%d_%s", inUv, width, height, _cx, _cy, _cw, _ch, cmw, cmh, fileName))
+	cacheName := []byte(fmt.Sprintf(
+		"%t_%dx%dc%f_%fx%f_%fcw%dx%d_%s_%s", inUV, width, height, _cx, _cy, _cw, _ch, cmw, cmh, GetPointsCache(points), fileName,
+	))
 	outputFile = fmt.Sprintf("%s/%x.cache", config.Options.TempPath, md5.Sum(cacheName))
 	if _, err := os.Stat(outputFile); err == nil {
 		return outputFile, nil
 	}
 
 	// Work with storage file
-	bytes, err := storage.GetFile(fileName)
+	imBytes, err := storage.GetFile(fileName)
 	if err != nil {
 		return "", errors.New("image not found")
 	}
 
-	file, err := vips.NewImageFromBuffer(bytes)
+	file, err := vips.NewImageFromBuffer(imBytes)
 	if err != nil {
 		return "", errors.New("image read error")
 	}
@@ -46,7 +48,7 @@ func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64,
 	// Convert coords
 	var cx, cy, cw, ch int
 
-	if inUv {
+	if inUV {
 		var newWidth, newHeight int
 
 		if width != 0 && height != 0 {
@@ -97,7 +99,9 @@ func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64,
 		}
 	}
 
+	cropped := false
 	if cw != 0 && ch != 0 {
+		cropped = true
 		err := file.ExtractArea(cx, cy, cw, ch)
 		if err != nil {
 			return "", errors.New("image crop invalid rect")
@@ -129,6 +133,10 @@ func ResizeImage(fileName string, width, height int, _cx, _cy, _cw, _ch float64,
 	}
 
 	SaveCacheImage(file, outputFile, ext)
+
+	if !cropped && len(points) > 0 {
+		DrawPoints(outputFile, points, inUV)
+	}
 
 	return outputFile, nil
 }

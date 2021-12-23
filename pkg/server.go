@@ -51,7 +51,10 @@ func handleCropRequest(w http.ResponseWriter, r *http.Request) {
 	height, _ := strconv.Atoi(vars["height"])
 	timeStart := time.Now()
 
-	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh, inUv)
+	points := ParsePoints(r.URL.Query().Get("points"))
+	fmt.Println(points)
+
+	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh, points, inUv)
 
 	if err != nil {
 		logger.Log(fmt.Sprintf("[%s] File open error: \"%s\"\n", logger.CurrTime(), err.Error()))

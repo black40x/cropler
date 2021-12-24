@@ -141,7 +141,6 @@ func DrawPoints(width, height int, points []DefinitionPoint, inUV bool) []byte {
 			DrawMarker(dc, p.X, p.Y, p.Number, inUV)
 		}
 	}
-	dc.SavePNG("out.png")
 	buf := new(bytes.Buffer)
 	png.Encode(buf, dc.Image())
 	return buf.Bytes()

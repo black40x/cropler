@@ -20,7 +20,13 @@ func main() {
 			storage.InitAdapter()
 			pkg.InitVips()
 			defer pkg.ShutdownVips()
-			pkg.InitServer(config.Options.Host, config.Options.Port)
+
+			err := pkg.InitFont()
+			if err != nil {
+				logger.LogError(err.Error())
+			} else {
+				pkg.InitServer(config.Options.Host, config.Options.Port)
+			}
 		}
 	} else {
 		logger.LogError("Error!\n")

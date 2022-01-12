@@ -36,23 +36,30 @@ func handleCropRequest(w http.ResponseWriter, r *http.Request) {
 	imagePath = strings.ReplaceAll(imagePath, "../", "")
 	imagePath = strings.ReplaceAll(imagePath, "./", "")
 
-	cx, _ := strconv.Atoi(r.URL.Query().Get("cx"))
-	cy, _ := strconv.Atoi(r.URL.Query().Get("cy"))
-	cw, _ := strconv.Atoi(r.URL.Query().Get("cw"))
-	ch, _ := strconv.Atoi(r.URL.Query().Get("ch"))
+	inUv := false
+	if uv, _ := strconv.Atoi(r.URL.Query().Get("uv")); uv == 1 {
+		inUv = true
+	}
+
+	cx, _ := strconv.ParseFloat(r.URL.Query().Get("cx"), 64)
+	cy, _ := strconv.ParseFloat(r.URL.Query().Get("cy"), 64)
+	cw, _ := strconv.ParseFloat(r.URL.Query().Get("cw"), 64)
+	ch, _ := strconv.ParseFloat(r.URL.Query().Get("ch"), 64)
 	cmw, _ := strconv.Atoi(r.URL.Query().Get("cmw"))
 	cmh, _ := strconv.Atoi(r.URL.Query().Get("cmh"))
 	width, _ := strconv.Atoi(vars["width"])
 	height, _ := strconv.Atoi(vars["height"])
 	timeStart := time.Now()
 
-	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh)
+	points := ParsePoints(r.URL.Query().Get("points"))
+
+	outputFile, err := ResizeImage(imagePath, width, height, cx, cy, cw, ch, cmw, cmh, points, inUv)
 
 	if err != nil {
 		logger.Log(fmt.Sprintf("[%s] File open error: \"%s\"\n", logger.CurrTime(), err.Error()))
 
 		response(w, http.StatusNotFound, map[string]interface{}{
-			"error": fmt.Sprintf("File %s not found", imagePath),
+			"error": err.Error(),
 		})
 	} else {
 		file, err := os.Open(outputFile)
@@ -80,7 +87,7 @@ func handleNotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 func InitServer(addr string, port string) {
-    appAddr := addr + ":" + port
+	appAddr := addr + ":" + port
 
 	concurrency := runtime.NumCPU() * 2
 	listener, _ := net.Listen("tcp", appAddr)

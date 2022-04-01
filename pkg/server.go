@@ -29,6 +29,12 @@ func toJson(r interface{}) []byte {
 	return res
 }
 
+func handlePingRequest(w http.ResponseWriter, r *http.Request) {
+	response(w, http.StatusOK, map[string]interface{}{
+		"result": true,
+	})
+}
+
 func handleCropRequest(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
@@ -97,6 +103,11 @@ func InitServer(addr string, port string) {
 	router.HandleFunc(
 		fmt.Sprintf("%s/{width}/{height}/{image:.*}", config.Options.RouteRoot), handleCropRequest,
 	).Methods("GET")
+
+	router.HandleFunc(
+		fmt.Sprintf("%s/ping", config.Options.RouteRoot), handlePingRequest,
+	).Methods("GET")
+
 	router.NotFoundHandler = http.HandlerFunc(handleNotFound)
 
 	srv := &http.Server{
